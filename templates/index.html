@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SafeVault — Automated Backup &amp; Disaster Recovery</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="bg-glow bg-glow-blue" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-purple" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">SV</div>
+        <div>
+          <h1>SafeVault</h1>
+          <p class="subtitle">Automated Backup &amp; Disaster Recovery System</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <span id="healthBadge" class="pill pill-healthy">
+          <span class="dot"></span>
+          <span id="healthText">System Healthy</span>
+        </span>
+        <button id="refreshBtn" class="btn btn-ghost" type="button" title="Refresh dashboard data">
+          Refresh Now
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    <div id="alertBanner" class="alert hidden" role="alert" aria-live="polite">
+      <div class="alert-body">
+        <strong id="alertTitle">Status</strong>
+        <span id="alertMessage"></span>
+      </div>
+      <button id="alertClose" class="alert-close" type="button" aria-label="Dismiss message">&times;</button>
+    </div>
+
+    <section class="stats-grid" aria-label="System overview metrics">
+      <article class="stat-card">
+        <span class="stat-label">Student Records</span>
+        <strong id="statStudentCount" class="stat-value">{{ initial_data.student_count }}</strong>
+        <span class="stat-hint">Active rows in SQLite database</span>
+      </article>
+
+      <article class="stat-card">
+        <span class="stat-label">Stored Backups</span>
+        <strong id="statBackupCount" class="stat-value">
+          {{ initial_data.backup_count }} / {{ initial_data.max_backups }}
+        </strong>
+        <span class="stat-hint">Retains latest {{ initial_data.max_backups }} snapshots</span>
+      </article>
+
+      <article class="stat-card">
+        <span class="stat-label">Latest Backup Integrity</span>
+        <strong id="statLatestStatus" class="stat-value stat-value-sm">
+          {% if initial_data.latest_backup %}
+            {{ initial_data.latest_backup.status }}
+          {% else %}
+            No Backups Yet
+          {% endif %}
+        </strong>
+        <span id="statLatestTime" class="stat-hint">
+          {% if initial_data.latest_backup %}
+            {{ initial_data.latest_backup.created_at }}
+          {% else %}
+            Create a manual backup or wait 60s
+          {% endif %}
+        </span>
+      </article>
+
+      <article class="stat-card">
+        <span class="stat-label">Auto-Backup Worker</span>
+        <strong id="statWorkerInterval" class="stat-value stat-value-sm">
+          Every {{ initial_data.worker_interval_seconds }}s
+        </strong>
+        <span id="statSyncTime" class="stat-hint">Auto-refreshing every 15s</span>
+      </article>
+    </section>
+
+    <section class="workspace-grid">
+      <div class="left-column">
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Add Student Record</h2>
+            <span class="badge-tag">SQLite Live DB</span>
+          </div>
+          <form id="studentForm" class="stack-form" novalidate>
+            <div class="form-group">
+              <label for="studentName">Full Name</label>
+              <input
+                id="studentName"
+                name="name"
+                type="text"
+                placeholder="e.g. Aarav Sharma"
+                minlength="2"
+                maxlength="100"
+                required
+              >
+            </div>
+            <div class="form-group">
+              <label for="studentEmail">Email Address</label>
+              <input
+                id="studentEmail"
+                name="email"
+                type="email"
+                placeholder="e.g. aarav@college.edu"
+                maxlength="120"
+                required
+              >
+            </div>
+            <div class="form-group">
+              <label for="studentCourse">Course / Department</label>
+              <input
+                id="studentCourse"
+                name="course"
+                type="text"
+                placeholder="e.g. B.Tech Computer Science"
+                minlength="2"
+                maxlength="100"
+                required
+              >
+            </div>
+            <button id="addStudentBtn" class="btn btn-primary btn-full" type="submit">
+              Save Student Record
+            </button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Backup &amp; Recovery Controls</h2>
+            <span class="badge-tag badge-purple">DR Simulation</span>
+          </div>
+          <p class="panel-note">
+            Backups use SQLite online snapshots verified with <strong>SHA-256</strong> and
+            <strong>PRAGMA integrity_check</strong>. Restores use a temporary database file first.
+          </p>
+          <div class="controls-stack">
+            <button id="manualBackupBtn" class="btn btn-primary btn-full" type="button">
+              Create Manual Backup Now
+            </button>
+            <button id="restoreLatestBtn" class="btn btn-success btn-full" type="button">
+              Restore Latest Valid Backup
+            </button>
+            <button id="simulateLossBtn" class="btn btn-danger btn-full" type="button">
+              Simulate Data Loss (Delete All Rows)
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Student Records</h2>
+            <p class="panel-subtext">Live contents of the SQLite <code>students</code> table</p>
+          </div>
+          <span id="studentsBadge" class="badge-tag">{{ initial_data.student_count }} record(s)</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Course</th>
+                <th>Added (UTC)</th>
+              </tr>
+            </thead>
+            <tbody id="studentsTableBody"></tbody>
+          </table>
+          <div id="studentsEmptyState" class="empty-state hidden">
+            <strong>No student records in the active database.</strong>
+            <span>Add a student on the left or restore from a verified backup.</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="panel-header">
+        <div>
+          <h2>Backup History &amp; Integrity Verification</h2>
+          <p class="panel-subtext">
+            Each snapshot is verified against its <code>.sha256</code> checksum and SQLite integrity check.
+          </p>
+        </div>
+        <span id="backupsBadge" class="badge-tag badge-purple">
+          {{ initial_data.backup_count }} snapshot(s)
+        </span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Timestamp (UTC)</th>
+              <th>Backup Filename</th>
+              <th>Size</th>
+              <th>SHA-256 Checksum</th>
+              <th>Verification Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="backupsTableBody"></tbody>
+        </table>
+        <div id="backupsEmptyState" class="empty-state hidden">
+          <strong>No backups created yet.</strong>
+          <span>Click "Create Manual Backup Now" or wait for the 60-second automated worker.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="confirmModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <h3 id="modalTitle">Confirm Action</h3>
+      <p id="modalMessage"></p>
+      <div class="modal-actions">
+        <button id="modalCancelBtn" class="btn btn-ghost" type="button">Cancel</button>
+        <button id="modalConfirmBtn" class="btn btn-danger" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script id="initial-dashboard-data" type="application/json">
+    {{ initial_data | tojson }}
+  </script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# SQLite databases and temporary files
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.restore_tmp*
+data/
+
+# Backup artifacts (keep folder via .gitkeep)
+backups/*.db
+backups/*.sha256
+backups/*.tmp
+
+# Environment & IDE
+.env
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

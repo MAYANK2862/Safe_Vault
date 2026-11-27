@@ -1,0 +1,47 @@
+services:
+  web:
+    build: .
+    container_name: safevault-web
+    ports:
+      - "8082:5000"
+    environment:
+      - DB_PATH=/data/safevault.db
+      - BACKUP_DIR=/backups
+      - MAX_BACKUPS=10
+      - BACKUP_INTERVAL_SECONDS=60
+    volumes:
+      - database-data:/data
+      - ./backups:/backups
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  backup-worker:
+    build: .
+    container_name: safevault-backup-worker
+    command: ["python", "backup_worker.py"]
+    environment:
+      - DB_PATH=/data/safevault.db
+      - BACKUP_DIR=/backups
+      - MAX_BACKUPS=10
+      - BACKUP_INTERVAL_SECONDS=60
+    volumes:
+      - database-data:/data
+      - ./backups:/backups
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  database-data:
