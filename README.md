@@ -73,6 +73,19 @@ docker compose run --rm --no-deps web python -m unittest discover -s tests -v
 
 ---
 
+## CI/CD Pipeline
+
+This project uses **GitHub Actions** for automated testing and Docker build verification.
+
+**Triggered on every push to `main`:**
+
+1. **Run Tests** — Sets up Python 3.11, installs dependencies, and runs all 7 automated tests
+2. **Docker Build Check** — Builds the Docker image to verify no build errors (runs only if tests pass)
+
+View pipeline results: [GitHub Actions](https://github.com/MAYANK2862/Safe_Vault/actions)
+
+---
+
 ## Stop
 
 ```powershell
